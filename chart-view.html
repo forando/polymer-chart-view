@@ -1,0 +1,299 @@
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
+<link rel="import" href="chart-el.html">
+<link rel="import" href="../paper-button/paper-button.html">
+<link rel="import" href="../iron-icons/iron-icons.html">
+<link rel="import" href="../paper-fab/paper-fab.html">
+<dom-module id="chart-view">
+    <template>
+        <style>
+            :host {
+                display: block;
+            }
+
+            #buttons-container{
+                padding: 0 10px;
+            }
+
+            .flex-horizontal {
+                @apply(--layout-horizontal);
+            }
+            .center{
+                justify-content: center;
+            }
+            .space{
+                min-width: 16px;
+            }
+            .stretch{
+                @apply(--layout-flex);
+            }
+        </style>
+
+        <chart-el id="chart" type="spline"
+                          loading$="{{splineLoading}}"
+                          loading-message="{{loadingMessage}}"
+                          xAxis="{type: 'datetime', tickPixelInterval: 150}"
+                          title="{{title}}"
+                          x-zoom
+                          x-label="{{labelX}}"
+                          y-label="{{labelY}}"
+                          vs-time
+                          on-redraw="_chartLoadedDebounce" on-drill-up-all="_onDrillUpAll">
+        </chart-el>
+        <div id="buttons-container" class="flex-horizontal">
+            <paper-button raised on-tap="_shiftBackward">назад</paper-button>
+            <div class="stretch flex-horizontal center">
+                <paper-fab mini icon="add" on-tap="_zoomIn"></paper-fab>
+                <span class="space"></span>
+                <paper-fab mini icon="remove" on-tap="_zoomOut"></paper-fab>
+            </div>
+            <paper-button raised on-tap="_shiftForward">вперед</paper-button>
+        </div>
+    </template>
+    <script>
+        (function() {
+            'use strict';
+
+            var DEBOUNCE_TIME = 500;
+            var INNIT_CHART_RANGE = 9;
+
+            Polymer({
+                is: 'chart-view',
+
+                properties: {
+                    title: {
+                        type: String,
+                        value: 'chart-view',
+                        notify: true
+                    },
+                    splineLoading:{
+                        type: Boolean,
+                        value: false
+                    },
+                    loadingMessage:{
+                        type: String,
+                        value: "График в процессе создания..."
+                    },
+                    labelX: {
+                        type: String,
+                        value: 'labelX',
+                        notify: true
+                    },
+                    labelY: {
+                        type: String,
+                        value: 'labelY',
+                        notify: true
+                    },
+                    chartData:{
+                        type: Array,
+                        value: [],
+                        notify: true,
+                        observer: "_dataChanged"
+                    },
+                    backUpArrayHead:{
+                        type: Array,
+                        value: []
+                    },
+                    backUpArrayTail:{
+                        type: Array,
+                        value: []
+                    },
+                    shiftingBackwards:{
+                        type: Boolean,
+                        value: false
+                    }
+                },
+
+                ready: function () {
+                    this.$.chart.legend = true;
+
+                    var _items = [];
+                    _items.push({id: 8750002, time_stamp: 1478889016, temp_kitchen: 7.5, temp_livingroom: 7.5 + 5});
+                    _items.push({id: 4720001, time_stamp: 1478890817, temp_kitchen: 8, temp_livingroom: 8 + 7});
+                    _items.push({id: 5580002, time_stamp: 1478892616, temp_kitchen: 9, temp_livingroom: 9 + 5});
+                    _items.push({id: 8760002, time_stamp: 1478887216, temp_kitchen: 6.5, temp_livingroom: 6.5 + 5});
+                    _items.push({id: 4690004, time_stamp: 1478894415, temp_kitchen: 10.5, temp_livingroom: 10.5 + 5});
+                    _items.push({id: 8780002, time_stamp: 1478896217, temp_kitchen: 12, temp_livingroom: 11.5 + 5});
+                    _items.push({id: 6810004, time_stamp: 1478898018, temp_kitchen: 13, temp_livingroom: 13 + 5});
+                    _items.push({id: 4710004, time_stamp: 1478899815, temp_kitchen: 15, temp_livingroom: 15 + 5});
+                    _items.push({id: 3830011, time_stamp: 1478901614, temp_kitchen: 17, temp_livingroom: 17 + 5});
+                    _items.push({id: 4710006, time_stamp: 1478903418, temp_kitchen: 18.5, temp_livingroom: 18.5 + 5});
+                    this._itemsChanged(_items);
+                },
+
+                _itemsChanged: function (newItems) {
+                    if(!newItems || newItems.length === 0)
+                        return;
+                    var tempKitchenData = {};
+                    var tempLivingRoomData = {};
+                    tempKitchenData.name = "Кухня";
+                    tempKitchenData.dataArray = [];
+                    tempLivingRoomData.name = "Гостинная";
+                    tempLivingRoomData.dataArray = [];
+                    newItems.sort(function(a, b){return a.time_stamp - b.time_stamp});
+                    var timeAxis = newItems.slice(0, INNIT_CHART_RANGE).map(function(item){
+                        return item.time_stamp * 1000;
+                    });
+                    var dataYTempKitchen = newItems.slice(0, INNIT_CHART_RANGE).map(function(item){
+                        return item.temp_kitchen;
+                    });
+                    var dataYTempLivingRoom = newItems.slice(0, INNIT_CHART_RANGE).map(function(item){
+                        return item.temp_livingroom;
+                    });
+
+                    for(var i = 0; i<timeAxis.length; i++){
+                        tempKitchenData.dataArray.push([timeAxis[i], dataYTempKitchen[i]]);
+                        tempLivingRoomData.dataArray.push([timeAxis[i], dataYTempLivingRoom[i]]);
+                    }
+                    this.chartData = [tempKitchenData, tempLivingRoomData];
+                },
+
+                _dataChanged: function () {
+                    /*
+                     debounce(jobName, callback, [wait]). Call debounce to collapse multiple requests for a named task
+                     into one invocation, which is made after the wait time has elapsed with no new request.
+                     If no wait time is given, the callback is called at microtask timing (guaranteed to be before paint).
+                     */
+                    this.debounce('dataChangeDebouncer', this._addDataToChart, DEBOUNCE_TIME);
+                },
+
+                _addDataToChart: function() {
+                    //cancelDebouncer(jobName). Cancels an active debouncer without calling the callback.
+                    this.cancelDebouncer('dataChangeDebouncer');
+                    this.splineLoading = true;
+                    console.log("splineLoading");
+                    if(this.chartData.length == 0)
+                        return;
+                    for(var i = 0; i<this.chartData.length; i++){
+                        if(i==0){
+                            this.$.chart.setData(this.chartData[i].dataArray, i);
+                            this.$.chart.updateSeries("name",this.chartData[i].name,i);
+                        }else{
+                            this.$.chart.addSeries(this.chartData[i].name, this.chartData[i].dataArray, false);
+                        }
+                    }
+                    console.log("DATA:", this.chartData);
+                },
+
+                _zoomIn: function (evt) {
+                    if(this.chartData.length == 0 || this.chartData[0].dataArray.length == 0)
+                        return;
+                    var removedDataArray;
+                    var deep = 2;
+                    for(var i = 0; i<this.chartData.length; i++){
+                        removedDataArray = this.$.chart.removeData(deep, false, i);
+                        console.log("removedDataArrayTail", removedDataArray);
+                        this.backUpArrayTail[i] = this.backUpArrayTail[i] || [];
+                        this.backUpArrayTail[i] = this.backUpArrayTail[i].concat(removedDataArray);
+
+                        removedDataArray = this.$.chart.removeData(deep, true, i);
+                        console.log("removedDataArrayHead", removedDataArray);
+                        this.backUpArrayHead[i] = this.backUpArrayHead[i] || [];
+                        this.backUpArrayHead[i] = removedDataArray.concat(this.backUpArrayHead[i]);
+                    }
+                    console.log("DATA", this.chartData);
+                    console.log("backUpArrayHead", this.backUpArrayHead);
+                    console.log("backUpArrayTail", this.backUpArrayTail);
+                },
+
+                _zoomOut: function (evt) {
+                    var head = true;
+                    var tail = true;
+                    if(this.backUpArrayTail.length == 0 || this.backUpArrayTail[0].length == 0)
+                        tail = false;
+                    if(this.backUpArrayHead.length == 0 || this.backUpArrayHead[0].length == 0)
+                        head = false;
+                    var newData;
+                    for(var i = 0; i<this.chartData.length; i++){
+                        if(tail){
+                            newData = this.backUpArrayTail[i].pop();
+                            this.$.chart.addData(newData[0], newData[1], i);
+                        }
+                        if(head){
+                            newData = this.backUpArrayHead[i].shift();
+                            this.$.chart.addData(newData[0], newData[1], i);
+                        }
+                    }
+                },
+
+                _shiftBackward: function (evt) {
+                    if(this.backUpArrayHead.length == 0 || this.backUpArrayHead[0].length == 0)
+                        return;
+                    /*for(var i = 0; i<this.chartData.length; i++){
+                     var newHeadData = this.backUpArrayHead[i].shift();
+                     this.backUpArrayTail[i] = this.backUpArrayTail[i] || [];
+                     var removedTailData = this.$.chart.unshiftData(newHeadData[0], newHeadData[1], i);
+                     this.backUpArrayTail[i].push(removedTailData.dataArray);
+                     }*/
+                    for(var i = 0; i<this.chartData.length; i++){
+                        var newHeadDataArray = this._getNewHeadDataArray(2, i);
+                        var removedTailDataArray = this.$.chart.unShiftData(newHeadDataArray, i);
+                        this.backUpArrayTail[i] = this.backUpArrayTail[i] || [];
+                        this.backUpArrayTail[i] = this.backUpArrayTail[i].concat(removedTailDataArray);
+                    }
+                    console.log("DATA", this.chartData);
+                    console.log("backUpArrayTail", this.backUpArrayTail);
+                },
+
+                _shiftForward: function (evt) {
+                    if(this.backUpArrayTail.length == 0 || this.backUpArrayTail[0].length == 0)
+                        return;
+                    for(var i = 0; i<this.chartData.length; i++){
+                        var newTailDataArray = this._getNewTailDataArray(2, i);
+                        var removedHeadDataArray = this.$.chart.pushData1(newTailDataArray, i, false, false);
+                        this.backUpArrayHead[i] = this.backUpArrayHead[i] || [];
+                        this.backUpArrayHead[i] = removedHeadDataArray.concat(this.backUpArrayHead[i]);
+                    }
+                    console.log("DATA", this.chartData);
+                    console.log("backUpArrayHead", this.backUpArrayHead);
+                },
+
+                _getNewHeadDataArray: function (items, seriesIndex) {
+                    var newHeadDataArray = [];
+                    var end = this.backUpArrayHead[seriesIndex].length < items ? this.backUpArrayHead[seriesIndex].length : items;
+                    for(var i = 0; i < end; i++){
+                        newHeadDataArray.push(this.backUpArrayHead[seriesIndex].shift());
+                    }
+                    return newHeadDataArray;
+                },
+
+                _getNewTailDataArray: function (items, seriesIndex) {
+                    var newTailDataArray = [];
+                    var end = this.backUpArrayTail[seriesIndex].length < items ? this.backUpArrayTail[seriesIndex].length : items;
+                    for(var i = 0; i < end; i++){
+                        newTailDataArray.unshift(this.backUpArrayTail[seriesIndex].pop());
+                    }
+                    return newTailDataArray;
+                },
+
+                _chartLoadedDebounce: function (e, chart, component) {
+                    /*
+                     debounce(jobName, callback, [wait]). Call debounce to collapse multiple requests for a named task
+                     into one invocation, which is made after the wait time has elapsed with no new request.
+                     If no wait time is given, the callback is called at microtask timing (guaranteed to be before paint).
+                     */
+                    this.debounce('chartLoadedDebouncer', this._chartLoaded, DEBOUNCE_TIME);
+                },
+
+                _chartLoaded: function () {
+                    //cancelDebouncer(jobName). Cancels an active debouncer without calling the callback.
+                    this.cancelDebouncer('chartLoadedDebouncer');
+                    this.splineLoading = false;
+                    console.log("Chart Loaded.");
+                    /*if(this.shiftingBackwards){
+                     this.shiftingBackwards = false;
+                     for(var i = 0; i<this.chartData.length; i++) {
+                     var index = this.chartData[i].dataArray.length - 1;
+                     var removedTailData = this.$.chart.removeData(index, i);
+                     this.backUpArrayTail[i].push(removedTailData.dataArray);
+                     }
+                     }*/
+                },
+
+                _onDrillUpAll: function (evt) {
+                    console.log("=========_onDrillUpAll=============");
+                }
+            });
+        })();
+    </script>
+</dom-module>
