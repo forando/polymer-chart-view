@@ -1,0 +1,29 @@
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="highcharts-behavior.html">
+<link rel="import" href="highcharts-shared-styles.html">
+<!--
+`chart-el`
+Wrapper for the Highcharts library
+
+@demo demo/index.html 
+-->
+
+<dom-module id="chart-el">
+  <template>
+    <style include="highcharts-shared-styles"></style>
+    <div id="Chart" width="100%" on-click="_checkSelected"></div>
+    <content></content>
+  </template>
+
+  <script>
+    Polymer({
+
+      is: 'chart-el',
+
+      behaviors: [Highcharts.Polymer_BaseBehavior, Highcharts.Polymer_ChartBehavior],
+      properties: {type: {type: String, value: 'spline', observer: '_updateType'}},
+      ready: function() {this.__createChart()}
+
+    });
+  </script>
+</dom-module>
