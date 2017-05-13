@@ -1,9 +1,10 @@
 <link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
-<link rel="import" href="chart-el.html">
 <link rel="import" href="../paper-button/paper-button.html">
 <link rel="import" href="../iron-icons/iron-icons.html">
 <link rel="import" href="../paper-fab/paper-fab.html">
+<link rel="import" href="highcharts-behavior.html">
+<link rel="import" href="highcharts-shared-styles.html">
 <dom-module id="chart-view">
     <template>
         <style>
@@ -29,7 +30,10 @@
             }
         </style>
 
-        <chart-el id="chart" type="spline"
+        <style include="highcharts-shared-styles"></style>
+        <div id="Chart" width="100%" on-click="_checkSelected"></div>
+
+        <!--<chart-el id="chart" type="spline"
                           loading$="{{splineLoading}}"
                           loading-message="{{loadingMessage}}"
                           xAxis="{type: 'datetime', tickPixelInterval: 150}"
@@ -39,15 +43,15 @@
                           y-label="{{labelY}}"
                           vs-time
                           on-redraw="_chartLoadedDebounce" on-drill-up-all="_onDrillUpAll">
-        </chart-el>
+        </chart-el>-->
         <div id="buttons-container" class="flex-horizontal">
-            <paper-button raised on-tap="_shiftBackward">назад</paper-button>
+            <paper-button raised on-tap="_shiftBackward">back</paper-button>
             <div class="stretch flex-horizontal center">
                 <paper-fab mini icon="add" on-tap="_zoomIn"></paper-fab>
                 <span class="space"></span>
                 <paper-fab mini icon="remove" on-tap="_zoomOut"></paper-fab>
             </div>
-            <paper-button raised on-tap="_shiftForward">вперед</paper-button>
+            <paper-button raised on-tap="_shiftForward">forward</paper-button>
         </div>
     </template>
     <script>
@@ -61,6 +65,11 @@
                 is: 'chart-view',
 
                 properties: {
+                    type: {
+                        type: String,
+                        value: 'spline',
+                        observer: '_updateType'
+                    },
                     title: {
                         type: String,
                         value: 'chart-view',
@@ -104,8 +113,12 @@
                     }
                 },
 
+                behaviors: [Highcharts.Polymer_BaseBehavior, Highcharts.Polymer_ChartBehavior],
+
                 ready: function () {
-                    this.$.chart.legend = true;
+                    this.__createChart();
+
+                    this.legend = true;
 
                     var _items = [];
                     _items.push({id: 8750002, time_stamp: 1478889016, temp_kitchen: 7.5, temp_livingroom: 7.5 + 5});
@@ -126,9 +139,9 @@
                         return;
                     var tempKitchenData = {};
                     var tempLivingRoomData = {};
-                    tempKitchenData.name = "Кухня";
+                    tempKitchenData.name = "Kitchen";
                     tempKitchenData.dataArray = [];
-                    tempLivingRoomData.name = "Гостинная";
+                    tempLivingRoomData.name = "Living room";
                     tempLivingRoomData.dataArray = [];
                     newItems.sort(function(a, b){return a.time_stamp - b.time_stamp});
                     var timeAxis = newItems.slice(0, INNIT_CHART_RANGE).map(function(item){
@@ -166,10 +179,10 @@
                         return;
                     for(var i = 0; i<this.chartData.length; i++){
                         if(i==0){
-                            this.$.chart.setData(this.chartData[i].dataArray, i);
-                            this.$.chart.updateSeries("name",this.chartData[i].name,i);
+                            this.setData(this.chartData[i].dataArray, i);
+                            this.updateSeries("name",this.chartData[i].name,i);
                         }else{
-                            this.$.chart.addSeries(this.chartData[i].name, this.chartData[i].dataArray, false);
+                            this.addSeries(this.chartData[i].name, this.chartData[i].dataArray, false);
                         }
                     }
                     console.log("DATA:", this.chartData);
@@ -181,12 +194,12 @@
                     var removedDataArray;
                     var deep = 2;
                     for(var i = 0; i<this.chartData.length; i++){
-                        removedDataArray = this.$.chart.removeData(deep, false, i);
+                        removedDataArray = this.removeData(deep, false, i);
                         console.log("removedDataArrayTail", removedDataArray);
                         this.backUpArrayTail[i] = this.backUpArrayTail[i] || [];
                         this.backUpArrayTail[i] = this.backUpArrayTail[i].concat(removedDataArray);
 
-                        removedDataArray = this.$.chart.removeData(deep, true, i);
+                        removedDataArray = this.removeData(deep, true, i);
                         console.log("removedDataArrayHead", removedDataArray);
                         this.backUpArrayHead[i] = this.backUpArrayHead[i] || [];
                         this.backUpArrayHead[i] = removedDataArray.concat(this.backUpArrayHead[i]);
@@ -207,11 +220,11 @@
                     for(var i = 0; i<this.chartData.length; i++){
                         if(tail){
                             newData = this.backUpArrayTail[i].pop();
-                            this.$.chart.addData(newData[0], newData[1], i);
+                            this.addData(newData[0], newData[1], i);
                         }
                         if(head){
                             newData = this.backUpArrayHead[i].shift();
-                            this.$.chart.addData(newData[0], newData[1], i);
+                            this.addData(newData[0], newData[1], i);
                         }
                     }
                 },
@@ -222,12 +235,12 @@
                     /*for(var i = 0; i<this.chartData.length; i++){
                      var newHeadData = this.backUpArrayHead[i].shift();
                      this.backUpArrayTail[i] = this.backUpArrayTail[i] || [];
-                     var removedTailData = this.$.chart.unshiftData(newHeadData[0], newHeadData[1], i);
+                     var removedTailData = this.unshiftData(newHeadData[0], newHeadData[1], i);
                      this.backUpArrayTail[i].push(removedTailData.dataArray);
                      }*/
                     for(var i = 0; i<this.chartData.length; i++){
                         var newHeadDataArray = this._getNewHeadDataArray(2, i);
-                        var removedTailDataArray = this.$.chart.unShiftData(newHeadDataArray, i);
+                        var removedTailDataArray = this.unShiftData(newHeadDataArray, i);
                         this.backUpArrayTail[i] = this.backUpArrayTail[i] || [];
                         this.backUpArrayTail[i] = this.backUpArrayTail[i].concat(removedTailDataArray);
                     }
@@ -236,11 +249,11 @@
                 },
 
                 _shiftForward: function (evt) {
-                    if(this.backUpArrayTail.length == 0 || this.backUpArrayTail[0].length == 0)
+                    if(this.backUpArrayTail.length === 0 || this.backUpArrayTail[0].length === 0)
                         return;
                     for(var i = 0; i<this.chartData.length; i++){
                         var newTailDataArray = this._getNewTailDataArray(2, i);
-                        var removedHeadDataArray = this.$.chart.pushData1(newTailDataArray, i, false, false);
+                        var removedHeadDataArray = this.pushData(newTailDataArray, i, false, false);
                         this.backUpArrayHead[i] = this.backUpArrayHead[i] || [];
                         this.backUpArrayHead[i] = removedHeadDataArray.concat(this.backUpArrayHead[i]);
                     }
@@ -284,7 +297,7 @@
                      this.shiftingBackwards = false;
                      for(var i = 0; i<this.chartData.length; i++) {
                      var index = this.chartData[i].dataArray.length - 1;
-                     var removedTailData = this.$.chart.removeData(index, i);
+                     var removedTailData = this.removeData(index, i);
                      this.backUpArrayTail[i].push(removedTailData.dataArray);
                      }
                      }*/
