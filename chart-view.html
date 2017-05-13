@@ -39,6 +39,7 @@ Wrapper for the Highcharts library
         </style>
 
         <style include="highcharts-shared-styles"></style>
+
         <div id="Chart" width="100%" on-click="_checkSelected"></div>
         <div id="buttons-container" class="flex-horizontal">
             <paper-button raised on-tap="_shiftBackward">back</paper-button>
@@ -75,7 +76,7 @@ Wrapper for the Highcharts library
                         type: Boolean,
                         value: false
                     },
-                    loadingMessage:{
+                    loadMessage:{
                         type: String,
                         value: "The chart is loading..."
                     },
@@ -111,7 +112,18 @@ Wrapper for the Highcharts library
 
                 behaviors: [Highcharts.Polymer_BaseBehavior, Highcharts.Polymer_ChartBehavior],
 
+                listeners: {
+                    'redraw': '_chartLoadedDebounce',
+                    'drill-up-all': '_onDrillUpAll'
+                },
+
                 ready: function () {
+                    this.loading = this.splineLoading;
+                    this.xAxis="{type: 'datetime', tickPixelInterval: 150}";
+                    this.xZoom = true;
+                    this.xLabel= this.labelX;
+                    this.yLabel=this.labelY;
+                    this.vsTime = true;
                     this.__createChart();
                     this.legend = true;
                 },
