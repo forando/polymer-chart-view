@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/forando/polymer-chart-view.svg?branch=master)](https://travis-ci.org/forando/polymer-chart-view)
 # \<chart-view\>
 
 Wrapper for the Highcharts library
