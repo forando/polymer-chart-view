@@ -20,11 +20,26 @@
       <h3>Basic chart-view demo</h3>
       <demo-snippet>
         <template>
-          <chart-view
+          <chart-view id="chart"
                   title="Temperature"
                   label-x="Time"
                   label-y="Temperature">
           </chart-view>
+          <script>
+              var _items = [];
+              _items.push({id: 8750002, time_stamp: 1478889016, temp_kitchen: 7.5, temp_livingroom: 7.5 + 5});
+              _items.push({id: 4720001, time_stamp: 1478890817, temp_kitchen: 8, temp_livingroom: 8 + 7});
+              _items.push({id: 5580002, time_stamp: 1478892616, temp_kitchen: 9, temp_livingroom: 9 + 5});
+              _items.push({id: 8760002, time_stamp: 1478887216, temp_kitchen: 6.5, temp_livingroom: 6.5 + 5});
+              _items.push({id: 4690004, time_stamp: 1478894415, temp_kitchen: 10.5, temp_livingroom: 10.5 + 5});
+              _items.push({id: 8780002, time_stamp: 1478896217, temp_kitchen: 12, temp_livingroom: 11.5 + 5});
+              _items.push({id: 6810004, time_stamp: 1478898018, temp_kitchen: 13, temp_livingroom: 13 + 5});
+              _items.push({id: 4710004, time_stamp: 1478899815, temp_kitchen: 15, temp_livingroom: 15 + 5});
+              _items.push({id: 3830011, time_stamp: 1478901614, temp_kitchen: 17, temp_livingroom: 17 + 5});
+              _items.push({id: 4710006, time_stamp: 1478903418, temp_kitchen: 18.5, temp_livingroom: 18.5 + 5});
+              var chart = document.querySelector('#chart');
+              chart._itemsChanged(_items);
+          </script>
         </template>
       </demo-snippet>
     </div>
