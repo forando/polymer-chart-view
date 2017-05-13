@@ -5,6 +5,14 @@
 <link rel="import" href="../paper-fab/paper-fab.html">
 <link rel="import" href="highcharts-behavior.html">
 <link rel="import" href="highcharts-shared-styles.html">
+
+<!--
+`chart-view`
+Wrapper for the Highcharts library
+
+@demo demo/index.html
+-->
+
 <dom-module id="chart-view">
     <template>
         <style>
@@ -32,18 +40,6 @@
 
         <style include="highcharts-shared-styles"></style>
         <div id="Chart" width="100%" on-click="_checkSelected"></div>
-
-        <!--<chart-el id="chart" type="spline"
-                          loading$="{{splineLoading}}"
-                          loading-message="{{loadingMessage}}"
-                          xAxis="{type: 'datetime', tickPixelInterval: 150}"
-                          title="{{title}}"
-                          x-zoom
-                          x-label="{{labelX}}"
-                          y-label="{{labelY}}"
-                          vs-time
-                          on-redraw="_chartLoadedDebounce" on-drill-up-all="_onDrillUpAll">
-        </chart-el>-->
         <div id="buttons-container" class="flex-horizontal">
             <paper-button raised on-tap="_shiftBackward">back</paper-button>
             <div class="stretch flex-horizontal center">

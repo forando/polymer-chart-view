@@ -1,4 +1,4 @@
-# \<chart-el\>
+# \<chart-view\>
 
 Wrapper for the Highcharts library
 

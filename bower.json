@@ -1,7 +1,7 @@
 {
-  "name": "chart-el",
+  "name": "chart-view",
   "description": "Wrapper for the Highcharts library",
-  "main": "chart-el.html",
+  "main": "chart-view.html",
   "dependencies": {
     "polymer": "Polymer/polymer#^1.4.0",
     "jquery": "^2.1.4",
